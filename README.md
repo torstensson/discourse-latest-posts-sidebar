@@ -1,0 +1,1 @@
+# discourse-latest-posts-sidebar
