@@ -1,0 +1,10 @@
+{
+    "name": "discourse-latest-posts-sidebar",
+    "license_url": "https://github.com/torstensson/discourse-latest-posts-sidebar/blob/master/LICENSE",
+    "about_url": "https://github.com/torstensson/discourse-latest-posts-sidebar/blob/master/README.md",
+    "component": true,
+    "assets": {
+    },
+    "color_schemes": {
+    }
+  }
