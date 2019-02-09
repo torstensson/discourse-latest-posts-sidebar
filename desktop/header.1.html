@@ -1,0 +1,88 @@
+<script type="text/discourse-plugin" version="0.8">
+    function defaultSettings() {
+      return {};
+    }
+    function parseSetups(raw) {
+      const parsed = {};
+      raw.split("|").forEach(setting => {
+        const [category, source, value] = setting.split(",").map(s => s.trim());
+        parsed[category] = parsed[category] || defaultSettings();
+        parsed[category]["cat"] = source;
+        parsed[category]["qty"] = value;
+      });
+      return parsed;
+    }
+    const setups = parseSetups(settings.setup);
+    const container = Discourse.__container__;
+    const { h } = require("virtual-dom");
+    const { ajax } = require("discourse/lib/ajax");
+    const postCache = {};
+    api.createWidget("latest-posts-sidebar", {
+      tagName: "div.sticky-sidebar",
+      html() {
+        const path = window.location.pathname;
+        const controller = container.lookup("controller:navigation/category");
+        const category = controller.get("category");
+        const stickyOffset  = document.getElementsByClassName('d-header')[0].offsetHeight + 20;
+        const sidebarWrapper = document.getElementById("fixed-wrapper");
+      
+        function sidebarClasses(setup) {
+          $("body").addClass("custom-sidebar");
+          $(".topic-list").addClass("with-sidebar").addClass(settings.sidebar_side);
+          $(".sticky-sidebar").css("top", stickyOffset + "px");
+        }
+        if (/^\/c\//.test(path) && setups[category.slug]){ // If set, show category sidebar
+          const setup = setups[category.slug];
+          sidebarClasses(setup);
+          const nodes = [
+            h("div.cooked", {
+              innerHTML: this.getPost(setup["cat"],setup["qty"])
+            })
+          ];
+          return h("div.latest-posts-sidebar-contents " + ".latest-posts-sidebar-" + category.slug, nodes);
+          
+        } else if (settings.inherit_parent_sidebar && /^\/c\//.test(path) && category.parentCategory && setups[category.parentCategory.slug] != undefined && setups[category.slug] == undefined ) { // Subcategory pages if unset, take on parent
+          const setup = setups[category.parentCategory.slug];
+          sidebarClasses(setup);
+          
+          const nodes = [
+            h("div.cooked", {
+              innerHTML: this.getPost(setup["cat"],setup["qty"])
+            })
+          ];
+          return h("div.latest-posts-sidebar-contents " + ".latest-posts-sidebar-", nodes);
+        } else if (setups["all"] && (/^\/$/.test(path) || /^\/latest/.test(path) || /^\/new/.test(path) || /^\/unread/.test(path) || /^\/top/.test(path)))  { // If set, show sidebar for category agnostic topic lists
+          const setup = setups["all"];
+          sidebarClasses(setup);
+          console.log(setups["all"]);
+          const nodes = [
+            h("div.cooked", {
+              innerHTML: this.getPost(setup["cat"],setup["qty"])
+            })
+          ];
+          return h("div.latest-posts-sidebar-contents " + ".latest-posts-sidebar-all", nodes);      
+       } else {
+          $("body").removeClass("custom-sidebar");
+          $(".topic-list").removeClass("with-sidebar");
+        }
+      },
+      getPost(cat,qty) {
+        if (!postCache[cat]) {
+          ajax(`/c/${cat}.json`).then(response => {
+            var n = 0;
+            postCache[cat] = '';
+            while (n < qty) {
+              postCache[cat] += response.topic_list.topics[n].title + '<hr>';
+              n++;
+             }
+            this.scheduleRerender();
+          });
+        }
+        return postCache[cat];
+      }
+    });
+  </script>
+  
+  <script type='text/x-handlebars' data-template-name='/connectors/before-topic-list-body/latest-posts-sidebar'>
+    <div class="latest-posts-sidebar"> {{mount-widget widget="latest-posts-sidebar"}} </div>
+  </script>
